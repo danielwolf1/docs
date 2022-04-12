@@ -15,50 +15,35 @@ And this is where metrics come into play!
 ## Collecting Metrics in Shopware
 There are several ways of collecting metrics by implementing different interfaces provided by Shopware.
 For event based metrics, e.g. when an order is placed, a simple event subscriber can be used.
-For more resource-intensive it's better to use a collector, that is run once a day by scheduled task.
+For more resource-intensive metrics it's better to use a collector, that is run once a day by scheduled task.
 
-## Configuration
-{% hint style="info" %}
-The shop's administrator has to opt-in to allow tracking of metrics. If the opt-in is not active, no metrics will be collected.
-{% endhint %}
+### Subscribers
 
-You can enable metric clients by specifying them under `shopware.metrics.clients` in the `shopware.yaml` file.
-Only metric clients tagged with `shopware.metrics.client` **and** activated there will be injected into the `MetricsDispatcher`.
+### Collectors
 
-In this example we activate an additional `InfluxDb` client that we will be implemented later.
-Please notice that the client's name in `shopware.yaml` matches the tag's `client` attribute when defining the PHP service.
-
-{% code title="custom/pluings/MetricsPlugin/src/Resources/config/packages/shopware.yaml" %}
-```yaml
-shopware:
-    metrics:
-        clients: ["PostHog", "InfluxDb"]
-```
-{% endcode %}
-
-## Metric Subscribers
-
-## Metric Collectors
-
-## Metrics Dispatcher
+### Dispatcher
 The `MetricsDispatcher` is the central service used for dispatching metrics collected by subscribers and collectors.
 It receives a `MetricStruct` and, enriches it with additional metadata and dispatches this metric to all registered and active metric clients.
 
-## Metadata Providers
+### Metadata Providers
 When collecting metrics, there are information that can be categorized as additional information that are the same for every metric.
 Typically, these are information about the user who triggered an event, about a sales channel where an order was placed or instance data like the Shopware version.
 
 So you don't have to fetch all this metadata every time you collect a metric you can create an `AbstractPartialMetadataProvider`.
-
+Before dispatching a metric to all clients, the `MetricsDispatcher` first asks the `MetadataProvider` to provide all metadata by calling the partial metadata providers tagged with `shopware.metrics.metadata_provider`.
 
 {% code title="custom/plugins/MetricsPlugin/src/Core/System/MetadataProvider/CustomMetadataProvider.php" %}
-
 ```php
 <?php declare(strict_types=1);
 
 namespace MetricsPlugin\Core\System\MetadataProvider;
 
 use Shopware\Core\System\Metrics\AbstractPartialMetadataProvider;
+use Shopware\Core\Framework\Api\Context\SalesChannelApiSource;
+use Shopware\Core\Framework\Context;
+use Shopware\Core\Framework\DataAbstractionLayer\EntityRepositoryInterface;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 
 class SalesChannelThemeMetadataProvider extends AbstractPartialMetadataProvider
 {
@@ -91,7 +76,7 @@ class SalesChannelThemeMetadataProvider extends AbstractPartialMetadataProvider
         
         return [
             self::KEY_SALES_CHANNEL_ASSIGNED_THEME => $theme->getTechnicalName()
-        ]
+        ];
     }
 }
 ```
@@ -164,5 +149,24 @@ Clients that are not configured inside the `shopware.yaml` configuration file, w
         <tag name="shopware.metrics.client" client="InfluxDb"/>
     </service>
 </services>
+```
+{% endcode %}
+
+## Configuration
+{% hint style="info" %}
+The shop's administrator has to opt-in to allow tracking of metrics. If the opt-in is not active, no metrics will be collected.
+{% endhint %}
+
+You can enable metric clients by specifying them under `shopware.metrics.clients` in the `shopware.yaml` file.
+Only metric clients tagged with `shopware.metrics.client` **and** activated there will be injected into the `MetricsDispatcher`.
+
+In this example we activate an additional `InfluxDb` client that we will be implemented later.
+Please notice that the client's name in `shopware.yaml` matches the tag's `client` attribute when defining the PHP service.
+
+{% code title="custom/pluings/MetricsPlugin/src/Resources/config/packages/shopware.yaml" %}
+```yaml
+shopware:
+    metrics:
+        clients: ["PostHog", "InfluxDb"]
 ```
 {% endcode %}
