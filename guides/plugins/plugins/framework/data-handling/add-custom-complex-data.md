@@ -23,6 +23,8 @@ In this guide we'll name our table `swag_example`, you'll find this name a few m
 
 As already mentioned in the prerequisites, creating a database table is done via plugin migrations [Plugin migrations](../../plugin-fundamentals/database-migrations.md), head over to this guide to understand how this example works.
 
+If you have already created your entity definitions, you can use the console commands `dal:validate` to check and `dal:create:schema` to create your entity defintions.
+
 {% code title="<plugin root>/src/Migration/Migration1611664789Example.php" %}
 ```php
 <?php declare(strict_types=1);
