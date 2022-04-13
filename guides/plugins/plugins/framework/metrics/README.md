@@ -23,13 +23,13 @@ For more resource intensive metrics it's better to use a collector, that is run 
 
 As a plugin developer you have the following extension points:
 
-| Type               | API                               | Description                                                  |
-|--------------------|-----------------------------------|--------------------------------------------------------------|
-| Metrics subscriber | `AbstractMetricsEventSubscriber`  | Collect metrics when an event is dispatched                  |
-| Metrics collector  | `AbstractMetricsCollector`        | Collect resource intensive metrics once a day                |
-| Metadata provider  | `AbstractPartialMetadataProvider` | Enrich all collected metrics with additional metadata        |
-| Metrics client     | `AbstractMetricClient`            | Connect to an analytics service to which metrics are sent to |
-| Configuration      | `shopware.yaml`                   | Configure and enable metric clients                          |
+| Type               | API                               | Description                                                   |
+|--------------------|-----------------------------------|---------------------------------------------------------------|
+| Metrics subscriber | `AbstractMetricsEventSubscriber`  | Collect metrics when an event is dispatched.                  |
+| Metrics collector  | `AbstractMetricsCollector`        | Collect resource intensive metrics once a day.                |
+| Metadata provider  | `AbstractPartialMetadataProvider` | Enrich all collected metrics with additional metadata.        |
+| Metrics client     | `AbstractMetricClient`            | Connect to an analytics service to which metrics are sent to. |
+| Configuration      | `shopware.yaml`                   | Configure and enable metric clients.                          |
 
 For more details on each of the extension points refer to the corresponding section in this article.
 
@@ -37,6 +37,19 @@ For more details on each of the extension points refer to the corresponding sect
 One important thing to keep in mind when capturing metrics is to avoid operations before the response is streamed to the user.
 Shopware adheres to this by performing metric operations on Symfony's `kernel.terminate` event.
 {% endhint %}
+
+### Metric struct
+A single metric in Shopware is represented by the `MetricStruct` class, an immutable object that holds all the data associated to the metric.
+
+Let's have a closer look at its properties and what they're about:
+
+| Property  | Mutator            | Description                                                                                        |
+|-----------|--------------------|----------------------------------------------------------------------------------------------------|
+| $name     | `n/a`              | The metric's name.                                                                                 |
+| $type     | `::withType()`     | Allowed types are `count`, `gauge` and `histogram` (defined in class constants for easier access). |
+| $value    | `::withValue()`    | The value of the metric must be one of <code>bool                                                  |int|float|string</code> and mainly depends on the metric's type.                |
+| $metadata | `::withMetadata()` | The metadata are additional information that usually are the same for all metrics.                 |
+| $tags     | `::withTags()`     | Tags are specific to a metric and are typically used for filtering and aggregating metrics.        |
 
 ### Subscribers
 With a metrics subscriber you can subscribe to every instance of `ShopwareEvent` and aggregate additional data that you want to have as part of your metric(s).
