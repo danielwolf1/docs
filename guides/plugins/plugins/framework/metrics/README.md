@@ -45,11 +45,15 @@ Let's have a closer look at its properties and what they're about:
 
 | Property  | Mutator            | Description                                                                                        |
 |-----------|--------------------|----------------------------------------------------------------------------------------------------|
-| $name     | `n/a`              | The metric's name.                                                                                 |
-| $type     | `::withType()`     | Allowed types are `count`, `gauge` and `histogram` (defined in class constants for easier access). |
-| $value    | `::withValue()`    | The value of the metric must be one of <code>bool                                                  |int|float|string</code> and mainly depends on the metric's type.                |
-| $metadata | `::withMetadata()` | The metadata are additional information that usually are the same for all metrics.                 |
-| $tags     | `::withTags()`     | Tags are specific to a metric and are typically used for filtering and aggregating metrics.        |
+| `$name`     | `n/a`              | The metric's name.                                                                                 |
+| `$type`     | `::withType()`     | Allowed types are `count`, `gauge` and `histogram` (defined as class constants for easier access). |
+| `$value`    | `::withValue()`    | The value of the metric must be one of <code>bool                                                  |int|float|string</code> and mainly depends on the metric's type.                |
+| `$metadata` | `::withMetadata()` | The metadata are additional information that usually are the same for all metrics.                 |
+| `$tags`     | `::withTags()`     | Tags are specific to a metric and are typically used for filtering and aggregating metrics.        |
+
+So, when to use tags or metadata? When fetching data and creating a new metric that you want to have additional key-value data specific to this very metric, you'll want to use tags.
+Metadata, on the other hand, are data that are the same for every metric and therefore also added to all metrics only once before dispatching.
+To provide additional custom metadata, see the corresponding section later in this article.
 
 ### Subscribers
 With a metrics subscriber you can subscribe to every instance of `ShopwareEvent` and aggregate additional data that you want to have as part of your metric(s).
