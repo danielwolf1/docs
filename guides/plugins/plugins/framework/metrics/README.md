@@ -12,6 +12,10 @@ Is the average amount of line items higher after a marketing campaign?
 To answer such questions it can be very helpful to collect all sort of information of an order and push it to an analytics service that helps you visualize and understand this data.
 And this is where metrics come into play!
 
+To understand this article you should be familiar with the plugin fundamentals:
+
+{% page-ref page="../../plugin-base-guide.md" %}
+
 ## Collecting Metrics in Shopware
 There are several ways of collecting metrics by implementing different interfaces provided by Shopware.
 For event based metrics, e.g. when an order is placed, a simple event subscriber can be used.
@@ -78,6 +82,72 @@ class CustomerRegisteredMetricsSubscriber extends AbstractMetricEventSubscriber
 {% endcode %}
 
 ### Collectors
+You should be using metrics collectors when you perform heavy operations to fetch data for your metric(s).
+This is mostly the case if you query the database and load a lot of associations to obtain large amounts of data that you transfer to metrics.
+We highly recommend to *not* use Shopware's DAL when doing so but rather use plain SQL, which in general is a lot faster.
+
+In this example we fetch count metrics about flows. This is of course only a very basic example, but there are almost no limits on what data you can add to your metrics.
+
+{% code title="custom/plugins/MetricsPlugin/Collector/FlowMetricsCollector.php" %}
+```php
+<?php declare(strict_types=1);
+
+namespace MetricsPlugin\Collector;
+
+use Doctrine\DBAL\Connection;
+
+/**
+ * @internal
+ */
+class FlowMetricsCollector extends AbstractMetricsCollector
+{
+    private const METRIC_NAME_FLOWS_TOTAL_COUNT = 'flows.total_count';
+    private const METRIC_NAME_ACTIVE_FLOWS_COUNT = 'flows.active_count';
+    private const METRIC_NAME_INACTIVE_FLOWS_COUNT = 'flows.inactive_count';
+    
+    private Connection $connection;
+
+    public function __construct(Connection $connection)
+    {
+        $this->connection = $connection;
+    }
+    
+    public function collect(): MetricCollection
+    {
+        return new MetricCollection([
+            (new MetricStruct(self::METRIC_NAME_FLOWS_TOTAL_COUNT, $this->fetchFlowsCount())),
+            (new MetricStruct(self::METRIC_NAME_ACTIVE_FLOWS_COUNT, $this->fetchActiveFlowsCount())),
+            (new MetricStruct(self::METRIC_NAME_INACTIVE_FLOWS_COUNT, $this->fetchInactiveFlowsCount())),
+        ]);
+    }
+
+    private function fetchFlowsCount(): int
+    {
+        return (int) $this->connection->executeQuery('SELECT COUNT(id) FROM flow')->fetchOne();
+    }
+
+    private function fetchActiveFlowsCount(): int
+    {
+        return (int) $this->connection->executeQuery('SELECT COUNT(id) FROM flow WHERE active = 1')->fetchOne();
+    }
+
+    private function fetchInactiveFlowsCount(): int
+    {
+        return (int) $this->connection->executeQuery('SELECT COUNT(id) FROM flow WHERE active = 0')->fetchOne();
+    }
+}
+```
+{% endcode %}
+
+{% code title="custom/plugins/MetricsPlugin/src/Resources/config/services.xml" %}
+```xml
+<services>
+    <service id="MetricsPlugin\Collector\FlowMetricsCollector">    
+        <tag name="shopware.metrics.collector"/>
+    </service>
+</services>
+```
+{% endcode %}
 
 ### Dispatcher
 The `MetricsDispatcher` is the central service used for dispatching metrics collected by subscribers and collectors.
@@ -96,7 +166,7 @@ In this example we add the theme's technical name to the metadata, but only if t
 ```php
 <?php declare(strict_types=1);
 
-namespace MetricsPlugin\Core\System\MetadataProvider;
+namespace MetricsPlugin\MetadataProvider;
 
 use Shopware\Core\System\Metrics\AbstractPartialMetadataProvider;
 use Shopware\Core\Framework\Api\Context\SalesChannelApiSource;
@@ -150,7 +220,7 @@ To force it to collect all partial metadata again, you need to call its `::reset
 {% code title="custom/plugins/MetricsPlugin/src/Resources/config/services.xml" %}
 ```xml
 <services>
-    <service id="MetricsPlugin\Core\System\MetadataProvider\SalesChannelThemeMetadataProvider">    
+    <service id="MetricsPlugin\MetadataProvider\SalesChannelThemeMetadataProvider">    
         <tag name="shopware.metrics.metadata_provider" priority="20"/>
     </service>
 </services>
@@ -159,7 +229,7 @@ To force it to collect all partial metadata again, you need to call its `::reset
 
 ### Clients
 Metric clients are the connectors to different backends that receive all the different metrics and data you collect.
-Common backend services could be DataDog, PostHog, Amazon Timestream, InfluxDB or Prometheus - to name only a few.
+Common backend services could be DataDog, PostHog, Amazon Timestream, InfluxDB or Prometheus to name only a few.
 They accept a `MetricStruct` and convert all the data contained in it into a format which its backend can handle.
 
 To create your own metric client you simply extend the `AbstractMetricClient`.
@@ -220,10 +290,10 @@ The shop's administrator has to opt-in to allow tracking of metrics. If the opt-
 You can enable metric clients by specifying them under `shopware.metrics.clients` in the `shopware.yaml` file.
 Only metric clients tagged with `shopware.metrics.client` **and** activated there will be injected into the `MetricsDispatcher`.
 
-In this example we activate an additional `InfluxDb` client that we will be implemented later.
-Please notice that the client's name in `shopware.yaml` matches the tag's `client` attribute when defining the PHP service.
+In this example we activate an additional `InfluxDb` client that we implemented earlier in this article.
+Please notice that the client's name inside `shopware.yaml` matches the tag's `client` attribute when defining the PHP service.
 
-{% code title="custom/pluings/MetricsPlugin/src/Resources/config/packages/shopware.yaml" %}
+{% code title="custom/plugins/MetricsPlugin/src/Resources/config/packages/shopware.yaml" %}
 ```yaml
 shopware:
     metrics:
