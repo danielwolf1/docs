@@ -15,7 +15,24 @@ And this is where metrics come into play!
 ## Collecting Metrics in Shopware
 There are several ways of collecting metrics by implementing different interfaces provided by Shopware.
 For event based metrics, e.g. when an order is placed, a simple event subscriber can be used.
-For more resource-intensive metrics it's better to use a collector, that is run once a day by scheduled task.
+For more resource intensive metrics it's better to use a collector, that is run once a day by scheduled task.
+
+As a plugin developer you have the following extension points:
+
+| Type               | API                               | Description                                                  |
+|--------------------|-----------------------------------|--------------------------------------------------------------|
+| Metrics subscriber | `AbstractMetricsEventSubscriber`  | Collect metrics when an event is dispatched                  |
+| Metrics collector  | `AbstractMetricsCollector`        | Collect resource intensive metrics once a day                |
+| Metadata provider  | `AbstractPartialMetadataProvider` | Enrich all collected metrics with additional metadata        |
+| Metrics client     | `AbstractMetricClient`            | Connect to an analytics service to which metrics are sent to |
+| Configuration      | `shopware.yaml`                   | Configure and enable metric clients                          |
+
+For more details on each of the extension points refer to the corresponding section in this article.
+
+{% hint style="danger" %}
+One important thing to keep in mind when capturing metrics is to avoid operations before the response is streamed to the user.
+Shopware adheres to this by performing metric operations on Symfony's `kernel.terminate` event.
+{% endhint %}
 
 ### Subscribers
 With a metrics subscriber you can subscribe to every instance of `ShopwareEvent` and aggregate additional data that you want to have as part of your metric(s).
@@ -64,7 +81,7 @@ class CustomerRegisteredMetricsSubscriber extends AbstractMetricEventSubscriber
 
 ### Dispatcher
 The `MetricsDispatcher` is the central service used for dispatching metrics collected by subscribers and collectors.
-It receives a `MetricStruct` and, enriches it with additional metadata and dispatches this metric to all registered and active metric clients.
+It receives a `MetricStruct`, enriches it with additional metadata and dispatches this metric to all registered and active metric clients.
 
 ### Metadata Providers
 When collecting metrics, there are information that can be categorized as additional information that are the same for every metric.
