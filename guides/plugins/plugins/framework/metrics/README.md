@@ -18,6 +18,47 @@ For event based metrics, e.g. when an order is placed, a simple event subscriber
 For more resource-intensive metrics it's better to use a collector, that is run once a day by scheduled task.
 
 ### Subscribers
+With a metrics subscriber you can subscribe to every instance of `ShopwareEvent` and aggregate additional data that you want to have as part of your metric(s).
+
+In this example we subscribe to the `CustomerRegisterEvent` and add the Sales Channel's identifier to it.
+
+{% code title="custom/plugins/MetricsPlugin/src/Subscriber/CustomerRegisteredMetricsSubscriber" %}
+```php
+<?php declare(strict_types=1);
+
+namespace MetricsPlugin\Subscriber;
+
+use Shopware\Core\Checkout\Customer\Event\CustomerRegisterEvent;
+use Shopware\Core\System\Metrics\AbstractMetricEventSubscriber;
+use Shopware\Core\System\Metrics\MetricCollection;
+use Shopware\Core\System\Metrics\MetricStruct;
+
+class CustomerRegisteredMetricsSubscriber extends AbstractMetricEventSubscriber
+{
+    private const METRIC_NAME_CUSTOMER_REGISTERED = 'customer.registered';
+
+    public function getSubscribedEvent(): string
+    {
+        CustomerRegisterEvent::class;
+    }
+    
+    /**
+     * @param CustomerRegisterEvent $event
+     */
+    public function getMetricsForEvent(ShopwareEvent $event): MetricCollection
+    {
+        $salesChannelId = $event->getSalesChannelContext()->getSalesChannelId();
+        
+        $metric = (new MetricStruct(self::METRIC_NAME_CUSTOMER_REGISTERED))
+            ->withTags([
+                'sales_channel_id' => $salesChannelId
+            ]);
+            
+        return new MetricCollection([$metric]);
+    }
+}
+```
+{% endcode %}
 
 ### Collectors
 
@@ -31,6 +72,8 @@ Typically, these are information about the user who triggered an event, about a 
 
 So you don't have to fetch all this metadata every time you collect a metric you can create an `AbstractPartialMetadataProvider`.
 Before dispatching a metric to all clients, the `MetricsDispatcher` first asks the `MetadataProvider` to provide all metadata by calling the partial metadata providers tagged with `shopware.metrics.metadata_provider`.
+
+In this example we add the theme's technical name to the metadata, but only if the context's source is a `SalesChannelApiSource`.
 
 {% code title="custom/plugins/MetricsPlugin/src/Core/System/MetadataProvider/CustomMetadataProvider.php" %}
 ```php
@@ -97,7 +140,7 @@ To force it to collect all partial metadata again, you need to call its `::reset
 ```
 {% endcode %}
 
-## Metric Clients
+### Clients
 Metric clients are the connectors to different backends that receive all the different metrics and data you collect.
 Common backend services could be DataDog, PostHog, Amazon Timestream, InfluxDB or Prometheus - to name only a few.
 They accept a `MetricStruct` and convert all the data contained in it into a format which its backend can handle.
